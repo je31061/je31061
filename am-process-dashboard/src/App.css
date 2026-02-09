@@ -911,6 +911,488 @@ body {
   box-shadow: 0 0 8px currentColor;
 }
 
+/* ============================================
+   Status Indicator on Cards
+   ============================================ */
+
+.card-status-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  z-index: 2;
+}
+
+.card-status-dot.status-in_progress {
+  background: #facc15;
+  box-shadow: 0 0 6px rgba(250, 204, 21, 0.5);
+  animation: status-pulse-yellow 2s ease-in-out infinite;
+}
+
+.card-status-dot.status-completed {
+  background: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+}
+
+.card-status-dot.status-delayed {
+  background: #f87171;
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.5);
+  animation: status-pulse-red 1.5s ease-in-out infinite;
+}
+
+@keyframes status-pulse-yellow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(250, 204, 21, 0.5); }
+  50% { opacity: 0.6; box-shadow: 0 0 12px rgba(250, 204, 21, 0.3); }
+}
+
+@keyframes status-pulse-red {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Simulation-active card highlight */
+.func-card.sim-active-card {
+  border-color: rgba(250, 204, 21, 0.5) !important;
+  box-shadow: 0 0 20px rgba(250, 204, 21, 0.15) !important;
+  background: rgba(250, 204, 21, 0.05) !important;
+}
+
+/* ============================================
+   Task Detail Sidebar
+   ============================================ */
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+}
+
+.sidebar-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 400px;
+  max-width: 90vw;
+  height: 100vh;
+  background: #0f172a;
+  border-left: 1px solid rgba(71, 85, 105, 0.3);
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.4);
+}
+
+.sidebar-header {
+  padding: 24px 24px 16px;
+}
+
+.sidebar-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.sidebar-team-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 12px;
+  letter-spacing: 0.5px;
+}
+
+.sidebar-close {
+  background: rgba(71, 85, 105, 0.2);
+  border: 1px solid rgba(71, 85, 105, 0.3);
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.sidebar-close:hover {
+  background: rgba(71, 85, 105, 0.4);
+  color: #e2e8f0;
+}
+
+.sidebar-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 6px;
+}
+
+.sidebar-desc {
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.sidebar-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 10px;
+  border: 1px solid;
+}
+
+.sidebar-target {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.sidebar-target-name {
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.sidebar-divider {
+  height: 1px;
+  margin: 0 24px;
+}
+
+.sidebar-fields {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+}
+
+.sidebar-fields-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 14px;
+}
+
+.sidebar-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  background: rgba(30, 41, 59, 0.3);
+  border: 1px solid transparent;
+  transition: background 0.15s;
+}
+
+.sidebar-field:hover {
+  background: rgba(30, 41, 59, 0.6);
+}
+
+.sidebar-field-highlight {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(71, 85, 105, 0.2);
+}
+
+.field-label {
+  font-size: 12px;
+  color: #94a3b8;
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.field-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e8f0;
+  text-align: right;
+  word-break: break-word;
+}
+
+.sidebar-footer {
+  padding: 12px 24px;
+  border-top: 1px solid rgba(71, 85, 105, 0.2);
+}
+
+.sidebar-footer-note {
+  font-size: 10px;
+  color: #475569;
+  text-align: center;
+}
+
+/* ============================================
+   Simulation Panel
+   ============================================ */
+
+.sim-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.99));
+  border-top: 1px solid rgba(250, 204, 21, 0.15);
+  backdrop-filter: blur(12px);
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3);
+}
+
+.sim-header {
+  padding: 12px 24px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sim-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sim-header-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.sim-header-subtitle {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.sim-controls {
+  padding: 4px 24px 8px;
+  display: flex;
+  gap: 8px;
+}
+
+.sim-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.sim-btn-start {
+  background: rgba(250, 204, 21, 0.1);
+  border-color: rgba(250, 204, 21, 0.3);
+  color: #facc15;
+}
+
+.sim-btn-start:hover {
+  background: rgba(250, 204, 21, 0.2);
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.15);
+}
+
+.sim-btn-stop {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+
+.sim-btn-stop:hover {
+  background: rgba(248, 113, 113, 0.2);
+}
+
+.sim-btn-reset {
+  background: rgba(148, 163, 184, 0.08);
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #94a3b8;
+}
+
+.sim-btn-reset:hover {
+  background: rgba(148, 163, 184, 0.15);
+}
+
+.sim-progress {
+  padding: 0 24px 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sim-progress-bar {
+  flex: 1;
+  height: 4px;
+  background: rgba(71, 85, 105, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.sim-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #facc15, #4ade80);
+}
+
+.sim-progress-text {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sim-steps {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px 12px;
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  overflow-x: auto;
+}
+
+.sim-step {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.sim-step:hover {
+  background: rgba(71, 85, 105, 0.1);
+}
+
+.sim-step-current {
+  background: rgba(250, 204, 21, 0.05);
+}
+
+.sim-step-timeline {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.sim-step-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sim-step-line {
+  flex: 1;
+  height: 2px;
+  min-width: 20px;
+  margin: 0 4px;
+}
+
+.sim-step-content {
+  padding-left: 2px;
+}
+
+.sim-step-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.sim-step-team {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.sim-step-target {
+  font-size: 9px;
+  color: #475569;
+  letter-spacing: 0.5px;
+}
+
+.sim-step-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-bottom: 4px;
+}
+
+.sim-step-desc {
+  font-size: 10px;
+  color: #94a3b8;
+  line-height: 1.4;
+  overflow: hidden;
+}
+
+.sim-step-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* Adjust dashboard-main when simulation panel is shown */
+.dashboard.sim-active .dashboard-main {
+  padding-bottom: 340px;
+}
+
+/* ============================================
+   Simulation Start Button (Header)
+   ============================================ */
+
+.sim-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  background: rgba(250, 204, 21, 0.08);
+  color: #facc15;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.sim-toggle-btn:hover {
+  background: rgba(250, 204, 21, 0.15);
+  box-shadow: 0 0 15px rgba(250, 204, 21, 0.1);
+}
+
+.sim-toggle-btn.sim-running {
+  border-color: rgba(74, 222, 128, 0.3);
+  background: rgba(74, 222, 128, 0.08);
+  color: #4ade80;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
   .right-panel {

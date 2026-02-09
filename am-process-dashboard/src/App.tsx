@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Ship,
   Anchor,
@@ -27,9 +27,14 @@ import {
   Server,
   Activity,
   ArrowRightLeft,
+  Play,
+  Zap,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import DataStream, { TeamId } from './DataStream';
+import TaskDetailSidebar from './TaskDetailSidebar';
+import SimulationPanel from './SimulationPanel';
+import { TASK_DETAILS, SIMULATION_STEPS, TaskDetail, SimulationStep, TaskStatus } from './taskData';
 import './App.css';
 
 interface FunctionCard {
@@ -115,46 +120,146 @@ const teamsData: TeamData[] = [
   },
 ];
 
+// ─── Get task status from TASK_DETAILS or simulation state ──
+function getCardStatus(
+  teamId: TeamId,
+  cardIndex: number,
+  simSteps: SimulationStep[],
+  simRunning: boolean,
+): TaskStatus {
+  // If simulation is running, use simulation step status
+  if (simRunning) {
+    const simStep = simSteps.find(s => s.teamId === teamId && s.cardIndex === cardIndex);
+    if (simStep && simStep.status !== 'idle') return simStep.status;
+  }
+  // Otherwise use static task data status
+  const task = TASK_DETAILS.find(t => t.teamId === teamId && t.cardIndex === cardIndex);
+  return task?.status || 'idle';
+}
+
 function App() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeTeam, setActiveTeam] = useState<TeamId | null>(null);
+
+  // Detail sidebar
+  const [selectedTask, setSelectedTask] = useState<TaskDetail | null>(null);
+
+  // Simulation
+  const [showSimPanel, setShowSimPanel] = useState(false);
+  const [simRunning, setSimRunning] = useState(false);
+  const [simSteps, setSimSteps] = useState<SimulationStep[]>(
+    SIMULATION_STEPS.map(s => ({ ...s }))
+  );
+  const [currentSimStepId, setCurrentSimStepId] = useState(0);
+  const simTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track which card is being highlighted by simulation
+  const [simHighlight, setSimHighlight] = useState<{ teamId: TeamId; cardIndex: number } | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('ko-KR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
-  };
+  const formatTime = (date: Date) =>
+    date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      weekday: 'short',
-    });
-  };
+  const formatDate = (date: Date) =>
+    date.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' });
 
+  // ─── Team click ───────────────────────────────────
   const handleTeamClick = useCallback((teamId: TeamId) => {
     setActiveTeam(prev => (prev === teamId ? null : teamId));
   }, []);
 
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-    // Only clear if clicking the main area background, not a child
     if ((e.target as HTMLElement).classList.contains('dashboard-main')) {
       setActiveTeam(null);
     }
   }, []);
 
+  // ─── Card click → open detail sidebar ─────────────
+  const handleCardClick = useCallback((e: React.MouseEvent, teamId: TeamId, cardIndex: number) => {
+    e.stopPropagation(); // prevent team click from firing
+    const task = TASK_DETAILS.find(t => t.teamId === teamId && t.cardIndex === cardIndex);
+    if (task) setSelectedTask(task);
+  }, []);
+
+  // ─── Simulation engine ────────────────────────────
+  const runSimStep = useCallback((stepIndex: number, steps: SimulationStep[]) => {
+    if (stepIndex >= steps.length) {
+      setSimRunning(false);
+      setSimHighlight(null);
+      return;
+    }
+
+    const step = steps[stepIndex];
+
+    // Mark current step as in_progress
+    setSimSteps(prev => prev.map(s =>
+      s.id === step.id ? { ...s, status: 'in_progress' as TaskStatus } : s
+    ));
+    setCurrentSimStepId(step.id);
+    setActiveTeam(step.teamId);
+    setSimHighlight({ teamId: step.teamId, cardIndex: step.cardIndex });
+
+    // After duration, mark completed and proceed
+    simTimerRef.current = setTimeout(() => {
+      // Step 3 (고장 분석) is intentionally delayed for demo
+      const finalStatus: TaskStatus = step.id === 3 ? 'delayed' : 'completed';
+
+      setSimSteps(prev => prev.map(s =>
+        s.id === step.id ? { ...s, status: finalStatus } : s
+      ));
+
+      // Small gap before next step
+      simTimerRef.current = setTimeout(() => {
+        runSimStep(stepIndex + 1, steps);
+      }, 400);
+    }, step.durationMs);
+  }, []);
+
+  const handleSimStart = useCallback(() => {
+    // Reset steps
+    const freshSteps = SIMULATION_STEPS.map(s => ({ ...s, status: 'idle' as TaskStatus }));
+    setSimSteps(freshSteps);
+    setCurrentSimStepId(0);
+    setSimRunning(true);
+    setShowSimPanel(true);
+
+    // Start from step 0
+    setTimeout(() => runSimStep(0, freshSteps), 500);
+  }, [runSimStep]);
+
+  const handleSimStop = useCallback(() => {
+    if (simTimerRef.current) clearTimeout(simTimerRef.current);
+    setSimRunning(false);
+    setSimHighlight(null);
+  }, []);
+
+  const handleSimReset = useCallback(() => {
+    if (simTimerRef.current) clearTimeout(simTimerRef.current);
+    setSimRunning(false);
+    setSimSteps(SIMULATION_STEPS.map(s => ({ ...s, status: 'idle' as TaskStatus })));
+    setCurrentSimStepId(0);
+    setSimHighlight(null);
+    setActiveTeam(null);
+  }, []);
+
+  const handleSimStepHighlight = useCallback((teamId: TeamId, cardIndex: number) => {
+    setActiveTeam(teamId);
+    const task = TASK_DETAILS.find(t => t.teamId === teamId && t.cardIndex === cardIndex);
+    if (task) setSelectedTask(task);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (simTimerRef.current) clearTimeout(simTimerRef.current);
+    };
+  }, []);
+
   return (
-    <div className="dashboard">
+    <div className={`dashboard ${showSimPanel ? 'sim-active' : ''}`}>
       {/* Header */}
       <header className="dashboard-header">
         <div className="header-left">
@@ -167,6 +272,21 @@ function App() {
           </div>
         </div>
         <div className="header-right">
+          {/* Simulation toggle */}
+          <button
+            className={`sim-toggle-btn ${simRunning ? 'sim-running' : ''}`}
+            onClick={() => {
+              if (!showSimPanel) {
+                setShowSimPanel(true);
+              } else if (!simRunning) {
+                handleSimStart();
+              }
+            }}
+          >
+            {simRunning ? <Zap size={14} /> : <Play size={14} />}
+            <span>{simRunning ? '시뮬레이션 진행중' : '시뮬레이션 시작'}</span>
+          </button>
+
           {/* Active team indicator */}
           <AnimatePresence>
             {activeTeam && (
@@ -232,15 +352,26 @@ function App() {
                   <span className="team-badge">{team.badge}</span>
                 </div>
                 <div className="cards-grid">
-                  {team.functions.map((func, idx) => (
-                    <div key={idx} className="func-card">
-                      <div className="card-icon">{func.icon}</div>
-                      <div className="card-label">{func.label}</div>
-                      <div className="card-sublabel">{func.sublabel}</div>
-                    </div>
-                  ))}
+                  {team.functions.map((func, idx) => {
+                    const cardStatus = getCardStatus(team.id, idx, simSteps, simRunning);
+                    const isSimActive = simHighlight?.teamId === team.id && simHighlight?.cardIndex === idx;
+                    return (
+                      <div
+                        key={idx}
+                        className={`func-card ${isSimActive ? 'sim-active-card' : ''}`}
+                        onClick={(e) => handleCardClick(e, team.id, idx)}
+                      >
+                        {/* Status dot */}
+                        {cardStatus !== 'idle' && (
+                          <div className={`card-status-dot status-${cardStatus}`} />
+                        )}
+                        <div className="card-icon">{func.icon}</div>
+                        <div className="card-label">{func.label}</div>
+                        <div className="card-sublabel">{func.sublabel}</div>
+                      </div>
+                    );
+                  })}
                 </div>
-                {/* Selected glow ring */}
                 {isSelected && (
                   <motion.div
                     className="selected-ring"
@@ -258,7 +389,6 @@ function App() {
 
         {/* Center Panel - ERP & CHS */}
         <div className="center-panel">
-          {/* ERP Node */}
           <motion.div
             className="data-store data-store-erp"
             animate={{
@@ -275,9 +405,7 @@ function App() {
             </div>
             <div className="store-name">ERP</div>
             <div className="store-desc">
-              전사 자원 관리 시스템
-              <br />
-              Enterprise Resource Planning
+              전사 자원 관리 시스템<br />Enterprise Resource Planning
             </div>
             <div className="store-stats">
               <div className="store-stat">
@@ -291,7 +419,6 @@ function App() {
             </div>
           </motion.div>
 
-          {/* Connector between ERP and CHS */}
           <div className="store-connector">
             <div className="connector-line" />
             <div className="connector-dot" />
@@ -302,7 +429,6 @@ function App() {
             <div className="connector-line" />
           </div>
 
-          {/* CHS Node */}
           <motion.div
             className="data-store data-store-chs"
             animate={{
@@ -319,9 +445,7 @@ function App() {
             </div>
             <div className="store-name">CHS</div>
             <div className="store-desc">
-              통합 이력 관리 시스템
-              <br />
-              Consolidated History System
+              통합 이력 관리 시스템<br />Consolidated History System
             </div>
             <div className="store-stats">
               <div className="store-stat">
@@ -338,7 +462,6 @@ function App() {
 
         {/* Right Panel - Legend & Info */}
         <div className="right-panel">
-          {/* Legend */}
           <div className="info-card">
             <div className="info-card-title">Teams</div>
             <div className="legend-items">
@@ -377,7 +500,25 @@ function App() {
             </div>
           </div>
 
-          {/* Data Flow */}
+          {/* Status Legend */}
+          <div className="info-card">
+            <div className="info-card-title">Status</div>
+            <div className="legend-items">
+              <div className="legend-item">
+                <div className="legend-color" style={{ background: '#facc15', width: 7, height: 7, borderRadius: '50%' }} />
+                <span className="legend-label">진행중 (In Progress)</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ background: '#4ade80', width: 7, height: 7, borderRadius: '50%' }} />
+                <span className="legend-label">완료 (Completed)</span>
+              </div>
+              <div className="legend-item">
+                <div className="legend-color" style={{ background: '#f87171', width: 7, height: 7, borderRadius: '50%' }} />
+                <span className="legend-label">지연 (Delayed)</span>
+              </div>
+            </div>
+          </div>
+
           <div className="info-card">
             <div className="info-card-title">Data Flow</div>
             <div className="flow-stats">
@@ -408,7 +549,6 @@ function App() {
             </div>
           </div>
 
-          {/* Activity */}
           <div className="info-card">
             <div className="info-card-title">Recent Activity</div>
             <div className="activity-feed">
@@ -440,51 +580,38 @@ function App() {
                   <div className="activity-time">23분 전</div>
                 </div>
               </div>
-              <div className="activity-item">
-                <div className="activity-dot" style={{ background: '#22d3ee' }} />
-                <div>
-                  <div className="activity-text">ERP 데이터 동기화</div>
-                  <div className="activity-time">30분 전</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* System Info */}
-          <div className="info-card">
-            <div className="info-card-title">System</div>
-            <div className="flow-stats">
-              <div className="flow-stat-item">
-                <span className="flow-stat-name">CPU</span>
-                <div className="flow-stat-bar">
-                  <div
-                    className="flow-stat-fill"
-                    style={{ width: '42%', background: 'linear-gradient(90deg, #22d3ee, #06b6d4)' }}
-                  />
-                </div>
-              </div>
-              <div className="flow-stat-item">
-                <span className="flow-stat-name">Memory</span>
-                <div className="flow-stat-bar">
-                  <div
-                    className="flow-stat-fill"
-                    style={{ width: '67%', background: 'linear-gradient(90deg, #818cf8, #6366f1)' }}
-                  />
-                </div>
-              </div>
-              <div className="flow-stat-item">
-                <span className="flow-stat-name">Network</span>
-                <div className="flow-stat-bar">
-                  <div
-                    className="flow-stat-fill"
-                    style={{ width: '31%', background: 'linear-gradient(90deg, #c084fc, #a855f7)' }}
-                  />
-                </div>
-              </div>
             </div>
           </div>
         </div>
       </main>
+
+      {/* Task Detail Sidebar */}
+      <TaskDetailSidebar
+        task={selectedTask}
+        onClose={() => setSelectedTask(null)}
+      />
+
+      {/* Simulation Panel */}
+      <AnimatePresence>
+        {showSimPanel && (
+          <motion.div
+            initial={{ y: 320 }}
+            animate={{ y: 0 }}
+            exit={{ y: 320 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+          >
+            <SimulationPanel
+              isRunning={simRunning}
+              onStart={handleSimStart}
+              onStop={handleSimStop}
+              onReset={handleSimReset}
+              currentStepId={currentSimStepId}
+              steps={simSteps}
+              onStepHighlight={handleSimStepHighlight}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
