@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Ship,
   Anchor,
@@ -28,6 +28,8 @@ import {
   Activity,
   ArrowRightLeft,
 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import DataStream, { TeamId } from './DataStream';
 import './App.css';
 
 interface FunctionCard {
@@ -37,7 +39,7 @@ interface FunctionCard {
 }
 
 interface TeamData {
-  id: string;
+  id: TeamId;
   name: string;
   nameEn: string;
   className: string;
@@ -115,6 +117,7 @@ const teamsData: TeamData[] = [
 
 function App() {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [activeTeam, setActiveTeam] = useState<TeamId | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -139,6 +142,17 @@ function App() {
     });
   };
 
+  const handleTeamClick = useCallback((teamId: TeamId) => {
+    setActiveTeam(prev => (prev === teamId ? null : teamId));
+  }, []);
+
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    // Only clear if clicking the main area background, not a child
+    if ((e.target as HTMLElement).classList.contains('dashboard-main')) {
+      setActiveTeam(null);
+    }
+  }, []);
+
   return (
     <div className="dashboard">
       {/* Header */}
@@ -153,6 +167,30 @@ function App() {
           </div>
         </div>
         <div className="header-right">
+          {/* Active team indicator */}
+          <AnimatePresence>
+            {activeTeam && (
+              <motion.div
+                className="active-team-indicator"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <span className="indicator-label">Pipeline:</span>
+                <span className={`indicator-team indicator-${activeTeam}`}>
+                  {teamsData.find(t => t.id === activeTeam)?.name}
+                </span>
+                <button
+                  className="indicator-clear"
+                  onClick={() => setActiveTeam(null)}
+                  aria-label="Clear filter"
+                >
+                  ✕
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <div className="status-badge">
             <span className="status-dot" />
             System Online
@@ -165,54 +203,73 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="dashboard-main">
+      <main className="dashboard-main" onClick={handleBackdropClick}>
+        {/* Data Stream SVG overlay */}
+        <DataStream activeTeam={activeTeam} />
+
         {/* Left Panel - 4 Team Areas */}
         <div className="teams-panel">
-          {teamsData.map((team) => (
-            <div key={team.id} className={`team-section ${team.className}`}>
-              <div className="team-header">
-                <div className="team-header-left">
-                  <div className="team-icon-wrap">{team.icon}</div>
-                  <div className="team-name">{team.name}</div>
-                </div>
-                <span className="team-badge">{team.badge}</span>
-              </div>
-              <div className="cards-grid">
-                {team.functions.map((func, idx) => (
-                  <div key={idx} className="func-card">
-                    <div className="card-icon">{func.icon}</div>
-                    <div className="card-label">{func.label}</div>
-                    <div className="card-sublabel">{func.sublabel}</div>
+          {teamsData.map((team) => {
+            const isActive = activeTeam === null || activeTeam === team.id;
+            const isSelected = activeTeam === team.id;
+            return (
+              <motion.div
+                key={team.id}
+                className={`team-section ${team.className} ${isSelected ? 'team-selected' : ''} ${!isActive ? 'team-dimmed' : ''}`}
+                onClick={() => handleTeamClick(team.id)}
+                animate={{
+                  opacity: isActive ? 1 : 0.35,
+                  scale: isSelected ? 1.01 : isActive ? 1 : 0.98,
+                }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                whileHover={{ scale: isActive ? 1.02 : 0.98 }}
+              >
+                <div className="team-header">
+                  <div className="team-header-left">
+                    <div className="team-icon-wrap">{team.icon}</div>
+                    <div className="team-name">{team.name}</div>
                   </div>
-                ))}
-              </div>
-            </div>
-          ))}
+                  <span className="team-badge">{team.badge}</span>
+                </div>
+                <div className="cards-grid">
+                  {team.functions.map((func, idx) => (
+                    <div key={idx} className="func-card">
+                      <div className="card-icon">{func.icon}</div>
+                      <div className="card-label">{func.label}</div>
+                      <div className="card-sublabel">{func.sublabel}</div>
+                    </div>
+                  ))}
+                </div>
+                {/* Selected glow ring */}
+                {isSelected && (
+                  <motion.div
+                    className="selected-ring"
+                    layoutId="selectedRing"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                  />
+                )}
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* Center Panel - ERP & CHS */}
         <div className="center-panel">
-          {/* Flow arrows */}
-          <div className="flow-arrows flow-arrows-left">
-            <div className="flow-arrow">
-              <div className="flow-dot" />
-              <div className="flow-dot" />
-              <div className="flow-dot" />
-            </div>
-            <div className="flow-arrow">
-              <div className="flow-dot" />
-              <div className="flow-dot" />
-              <div className="flow-dot" />
-            </div>
-            <div className="flow-arrow">
-              <div className="flow-dot" />
-              <div className="flow-dot" />
-              <div className="flow-dot" />
-            </div>
-          </div>
-
           {/* ERP Node */}
-          <div className="data-store data-store-erp">
+          <motion.div
+            className="data-store data-store-erp"
+            animate={{
+              boxShadow: activeTeam
+                ? (activeTeam === 'marine' || activeTeam === 'spare'
+                  ? '0 0 40px rgba(6, 182, 212, 0.25), 0 0 80px rgba(6, 182, 212, 0.1)'
+                  : '0 0 30px rgba(6, 182, 212, 0.08), 0 0 60px rgba(6, 182, 212, 0.03)')
+                : '0 0 30px rgba(6, 182, 212, 0.1), 0 0 60px rgba(6, 182, 212, 0.05)',
+            }}
+            transition={{ duration: 0.4 }}
+          >
             <div className="store-icon-wrap">
               <Database size={28} />
             </div>
@@ -232,7 +289,7 @@ function App() {
                 <span className="store-stat-label">Uptime</span>
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Connector between ERP and CHS */}
           <div className="store-connector">
@@ -246,7 +303,17 @@ function App() {
           </div>
 
           {/* CHS Node */}
-          <div className="data-store data-store-chs">
+          <motion.div
+            className="data-store data-store-chs"
+            animate={{
+              boxShadow: activeTeam
+                ? (activeTeam === 'dev' || activeTeam === 'mro'
+                  ? '0 0 40px rgba(99, 102, 241, 0.25), 0 0 80px rgba(99, 102, 241, 0.1)'
+                  : '0 0 30px rgba(99, 102, 241, 0.08), 0 0 60px rgba(99, 102, 241, 0.03)')
+                : '0 0 30px rgba(99, 102, 241, 0.1), 0 0 60px rgba(99, 102, 241, 0.05)',
+            }}
+            transition={{ duration: 0.4 }}
+          >
             <div className="store-icon-wrap">
               <Server size={28} />
             </div>
@@ -266,7 +333,7 @@ function App() {
                 <span className="store-stat-label">APIs</span>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Right Panel - Legend & Info */}
@@ -275,22 +342,38 @@ function App() {
           <div className="info-card">
             <div className="info-card-title">Teams</div>
             <div className="legend-items">
-              <div className="legend-item">
-                <div className="legend-color" style={{ background: '#06b6d4' }} />
-                <span className="legend-label">마린서비스</span>
-              </div>
-              <div className="legend-item">
-                <div className="legend-color" style={{ background: '#6366f1' }} />
-                <span className="legend-label">AM개발</span>
-              </div>
-              <div className="legend-item">
-                <div className="legend-color" style={{ background: '#a855f7' }} />
-                <span className="legend-label">스페어</span>
-              </div>
-              <div className="legend-item">
-                <div className="legend-color" style={{ background: '#ec4899' }} />
-                <span className="legend-label">MRO</span>
-              </div>
+              {teamsData.map((team) => (
+                <div
+                  key={team.id}
+                  className={`legend-item legend-clickable ${activeTeam === team.id ? 'legend-active' : ''}`}
+                  onClick={() => handleTeamClick(team.id)}
+                >
+                  <div
+                    className="legend-color"
+                    style={{
+                      background:
+                        team.id === 'marine' ? '#06b6d4' :
+                        team.id === 'dev' ? '#6366f1' :
+                        team.id === 'spare' ? '#a855f7' : '#ec4899',
+                    }}
+                  />
+                  <span className="legend-label">{team.name}</span>
+                  {activeTeam === team.id && (
+                    <motion.span
+                      className="legend-active-dot"
+                      layoutId="legendDot"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      style={{
+                        background:
+                          team.id === 'marine' ? '#22d3ee' :
+                          team.id === 'dev' ? '#818cf8' :
+                          team.id === 'spare' ? '#c084fc' : '#f472b6',
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
